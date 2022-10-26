@@ -5,6 +5,7 @@ go 1.19
 require (
 	golang.org/x/tools v0.2.0
 	google.golang.org/genproto v0.0.0-20221025140454-527a21cfbd71
+	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.2.0
 	google.golang.org/protobuf v1.28.1
 	honnef.co/go/tools v0.3.3
 )
