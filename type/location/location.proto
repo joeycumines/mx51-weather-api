@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package weather.type;
+
+option go_package = "github.com/joeycumines/mx51-weather-api/type/location";
+
+import "google/type/latlng.proto";
+
+message Location {
+  string name = 1;
+  google.type.LatLng position = 2;
+}

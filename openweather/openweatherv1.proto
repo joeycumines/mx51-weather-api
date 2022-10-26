@@ -1,0 +1,31 @@
+// https://cloud.google.com/apis/design
+
+syntax = "proto3";
+
+// versioned separately to the http / public-facing api
+package weather.openweather.v1;
+
+option go_package = "github.com/joeycumines/mx51-weather-api/openweather";
+
+import "google/protobuf/timestamp.proto";
+import "type/location/location.proto";
+
+// Openweather models the actual https://api.openweathermap.org/data/2.5 API, providing a caching layer, and abstracting
+// concerns including auth.
+//
+// Only metric units are supported / used.
+service Openweather {
+  rpc GetWeather (GetWeatherRequest) returns (Weather) {}
+}
+
+// https://openweathermap.org/current
+message Weather {
+  google.protobuf.Timestamp read_time = 1;
+  weather.type.Location location = 2;
+  double temp = 3;
+  double wind_speed = 4;
+}
+
+message GetWeatherRequest {
+  string query = 1;
+}

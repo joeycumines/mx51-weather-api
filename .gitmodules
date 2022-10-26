@@ -1,0 +1,3 @@
+[submodule "hack/api-common-protos"]
+	path = hack/api-common-protos
+	url = git@github.com:googleapis/api-common-protos.git

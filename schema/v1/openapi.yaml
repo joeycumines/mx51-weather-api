@@ -8,8 +8,6 @@ externalDocs:
 paths:
   /v1/weather:
     get:
-      tags:
-        - Sesame
       parameters:
         - name: city
           in: query

@@ -24,6 +24,8 @@ command -v protoc-gen-go >/dev/null 2>&1
 # shellcheck disable=SC2054
 cmd=(
     protoc
+    -I .
+    -I hack/api-common-protos
     --go_out=. --go_opt=paths=source_relative
 )
 

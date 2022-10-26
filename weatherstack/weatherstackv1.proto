@@ -1,0 +1,31 @@
+// https://cloud.google.com/apis/design
+
+syntax = "proto3";
+
+// versioned separately to the http / public-facing api
+package weather.weatherstack.v1;
+
+option go_package = "github.com/joeycumines/mx51-weather-api/weatherstack";
+
+import "google/protobuf/timestamp.proto";
+import "type/location/location.proto";
+
+// Weatherstack models the actual https://api.weatherstack.com API, providing a caching layer, and abstracting
+// concerns including auth.
+//
+// Only metric units are supported / used.
+service Weatherstack {
+  rpc GetCurrentWeather (GetCurrentWeatherRequest) returns (CurrentWeather) {}
+}
+
+// https://weatherstack.com/documentation#current_weather
+message CurrentWeather {
+  google.protobuf.Timestamp read_time = 1;
+  weather.type.Location location = 2;
+  double temperature = 3;
+  double wind_speed = 4;
+}
+
+message GetCurrentWeatherRequest {
+  string query = 1;
+}
