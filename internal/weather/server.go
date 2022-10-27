@@ -82,18 +82,6 @@ func (x *Server) buildWeatherResponse(ctx context.Context, query string) (*weath
 
 	// attempt providers in order of higher priority first
 
-	owRes, owErr := x.Openweather.GetWeather(ctx, &openweather.GetWeatherRequest{
-		Query:       query,
-		MinReadTime: timestamppb.New(minReadTime),
-	})
-	if owErr == nil {
-		if owRes.GetReadTime() == nil {
-			owErr = errMissingReadTime
-		} else if !owRes.GetReadTime().AsTime().Before(minReadTime) {
-			return new(weatherResponse).fromOpenweather(owRes), nil
-		}
-	}
-
 	wsRes, wsErr := x.Weatherstack.GetCurrentWeather(ctx, &weatherstack.GetCurrentWeatherRequest{
 		Query:       query,
 		MinReadTime: timestamppb.New(minReadTime),
@@ -106,18 +94,30 @@ func (x *Server) buildWeatherResponse(ctx context.Context, query string) (*weath
 		}
 	}
 
-	// fallback to returning the freshest response
-	switch {
-	case owErr == nil && wsErr == nil:
-		if wsRes.GetReadTime().AsTime().After(owRes.GetReadTime().AsTime()) {
-			return new(weatherResponse).fromWeatherstack(wsRes), nil
-		} else {
+	owRes, owErr := x.Openweather.GetWeather(ctx, &openweather.GetWeatherRequest{
+		Query:       query,
+		MinReadTime: timestamppb.New(minReadTime),
+	})
+	if owErr == nil {
+		if owRes.GetReadTime() == nil {
+			owErr = errMissingReadTime
+		} else if !owRes.GetReadTime().AsTime().Before(minReadTime) {
 			return new(weatherResponse).fromOpenweather(owRes), nil
 		}
-	case owErr == nil:
-		return new(weatherResponse).fromOpenweather(owRes), nil
+	}
+
+	// fallback to returning the freshest response
+	switch {
+	case wsErr == nil && owErr == nil:
+		if owRes.GetReadTime().AsTime().After(wsRes.GetReadTime().AsTime()) {
+			return new(weatherResponse).fromOpenweather(owRes), nil
+		} else {
+			return new(weatherResponse).fromWeatherstack(wsRes), nil
+		}
 	case wsErr == nil:
 		return new(weatherResponse).fromWeatherstack(wsRes), nil
+	case owErr == nil:
+		return new(weatherResponse).fromOpenweather(owRes), nil
 	default:
 		return nil, status.Error(codes.Unavailable, `no weather providers available`)
 	}

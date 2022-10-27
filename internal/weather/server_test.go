@@ -32,14 +32,6 @@ func TestServer(t *testing.T) {
 	t.Parallel()
 
 	type (
-		OpenweatherRequest struct {
-			ctx context.Context
-			req *openweather.GetWeatherRequest
-		}
-		OpenweatherResponse struct {
-			res *openweather.Weather
-			err error
-		}
 		WeatherstackRequest struct {
 			ctx context.Context
 			req *weatherstack.GetCurrentWeatherRequest
@@ -48,13 +40,21 @@ func TestServer(t *testing.T) {
 			res *weatherstack.CurrentWeather
 			err error
 		}
+		OpenweatherRequest struct {
+			ctx context.Context
+			req *openweather.GetWeatherRequest
+		}
+		OpenweatherResponse struct {
+			res *openweather.Weather
+			err error
+		}
 		Harness struct {
 			ts              *httptest.Server
 			setTime         func(t time.Time)
-			openweatherIn   <-chan OpenweatherRequest
-			openweatherOut  chan<- OpenweatherResponse
 			weatherstackIn  <-chan WeatherstackRequest
 			weatherstackOut chan<- WeatherstackResponse
+			openweatherIn   <-chan OpenweatherRequest
+			openweatherOut  chan<- OpenweatherResponse
 		}
 	)
 
@@ -102,7 +102,7 @@ func TestServer(t *testing.T) {
 			},
 		},
 		{
-			name:   `openweather weatherstack`,
+			name:   `weatherstack openweather`,
 			maxAge: time.Second * 3,
 			test: func(t *testing.T, h Harness) {
 				// note these tests aren't parallel, since the harness state matters (request ping/pong + time)
@@ -122,79 +122,13 @@ func TestServer(t *testing.T) {
 					return ch
 				}
 
-				t.Run(`openweather success`, func(t *testing.T) {
+				t.Run(`weatherstack success`, func(t *testing.T) {
 					setTime(0)
 					ch := testRequest(t, h.ts, http.MethodGet, `/v1/weather?city=sydney`, nil)
-					{
-						req := <-h.openweatherIn
-						if query := req.req.GetQuery(); query != `sydney` {
-							t.Errorf(`unexpected query: %q`, query)
-						}
-						h.openweatherOut <- OpenweatherResponse{res: &openweather.Weather{
-							ReadTime:  timestamppb.New(time.Unix(0, int64(time.Millisecond*25))),
-							Location:  sydLocation,
-							Temp:      29,
-							WindSpeed: 20,
-						}}
-					}
-					out := <-ch
-					if out.res.StatusCode != http.StatusOK {
-						t.Errorf(`unexpected status code: %d`, out.res.StatusCode)
-					}
-					if v := out.res.Header.Get(`Content-Type`); v != `application/json` {
-						t.Errorf(`unexpected content type: %s`, v)
-					}
-					if v := out.res.Header.Get(`Content-Length`); v != strconv.Itoa(len(out.body)) {
-						t.Errorf(`unexpected content length: %s`, v)
-					}
-					if out.body != `{"wind_speed":72,"temperature_degrees":29}` {
-						t.Errorf("unexpected body: %q\n%s", out.body, out.body)
-					}
-				})
-
-				t.Run(`openweather cached`, func(t *testing.T) {
-					setTime(0)
-					ch := testRequest(t, h.ts, http.MethodGet, `/v1/weather?city=brisbane`, nil)
-					{
-						req := <-h.openweatherIn
-						if query := req.req.GetQuery(); query != `brisbane` {
-							t.Errorf(`unexpected query: %q`, query)
-						}
-						if minReadTime := req.req.GetMinReadTime(); minReadTime == nil || !minReadTime.AsTime().Equal(time.Unix(0, 0).Add(-time.Second*3)) {
-							t.Errorf(`unexpected min read time: %q`, minReadTime)
-						}
-						h.openweatherOut <- OpenweatherResponse{res: &openweather.Weather{
-							ReadTime:  timestamppb.New(time.Unix(0, int64(time.Second*-2))),
-							Temp:      23,
-							WindSpeed: 15,
-						}}
-					}
-					out := <-ch
-					if out.res.StatusCode != http.StatusOK {
-						t.Errorf(`unexpected status code: %d`, out.res.StatusCode)
-					}
-					if out.body != `{"wind_speed":54,"temperature_degrees":23}` {
-						t.Errorf("unexpected body: %q\n%s", out.body, out.body)
-					}
-				})
-
-				t.Run(`openweather expired weatherstack success`, func(t *testing.T) {
-					setTime(0)
-					ch := testRequest(t, h.ts, http.MethodGet, `/v1/weather?city=sydney`, nil)
-					<-h.openweatherIn
-					h.openweatherOut <- OpenweatherResponse{res: &openweather.Weather{
-						ReadTime:  timestamppb.New(time.Unix(0, -int64(time.Minute*3+1))),
-						Location:  sydLocation,
-						Temp:      33,
-						WindSpeed: 3,
-					}}
 					{
 						req := <-h.weatherstackIn
 						if query := req.req.GetQuery(); query != `sydney` {
 							t.Errorf(`unexpected query: %q`, query)
-						}
-						if minReadTime := req.req.GetMinReadTime(); minReadTime == nil || !minReadTime.AsTime().Equal(time.Unix(0, 0).Add(-time.Second*3)) {
-							t.Errorf(`unexpected min read time: %q`, minReadTime)
 						}
 						h.weatherstackOut <- WeatherstackResponse{res: &weatherstack.CurrentWeather{
 							ReadTime:    timestamppb.New(time.Unix(0, int64(time.Millisecond*25))),
@@ -207,28 +141,94 @@ func TestServer(t *testing.T) {
 					if out.res.StatusCode != http.StatusOK {
 						t.Errorf(`unexpected status code: %d`, out.res.StatusCode)
 					}
-					if out.body != "{\"wind_speed\":20,\"temperature_degrees\":29}" {
+					if v := out.res.Header.Get(`Content-Type`); v != `application/json` {
+						t.Errorf(`unexpected content type: %s`, v)
+					}
+					if v := out.res.Header.Get(`Content-Length`); v != strconv.Itoa(len(out.body)) {
+						t.Errorf(`unexpected content length: %s`, v)
+					}
+					if out.body != `{"wind_speed":20,"temperature_degrees":29}` {
 						t.Errorf("unexpected body: %q\n%s", out.body, out.body)
 					}
 				})
 
-				t.Run(`openweather error weatherstack success`, func(t *testing.T) {
+				t.Run(`weatherstack cached`, func(t *testing.T) {
+					setTime(0)
+					ch := testRequest(t, h.ts, http.MethodGet, `/v1/weather?city=brisbane`, nil)
+					{
+						req := <-h.weatherstackIn
+						if query := req.req.GetQuery(); query != `brisbane` {
+							t.Errorf(`unexpected query: %q`, query)
+						}
+						if minReadTime := req.req.GetMinReadTime(); minReadTime == nil || !minReadTime.AsTime().Equal(time.Unix(0, 0).Add(-time.Second*3)) {
+							t.Errorf(`unexpected min read time: %q`, minReadTime)
+						}
+						h.weatherstackOut <- WeatherstackResponse{res: &weatherstack.CurrentWeather{
+							ReadTime:    timestamppb.New(time.Unix(0, int64(time.Second*-2))),
+							Temperature: 23,
+							WindSpeed:   15,
+						}}
+					}
+					out := <-ch
+					if out.res.StatusCode != http.StatusOK {
+						t.Errorf(`unexpected status code: %d`, out.res.StatusCode)
+					}
+					if out.body != `{"wind_speed":15,"temperature_degrees":23}` {
+						t.Errorf("unexpected body: %q\n%s", out.body, out.body)
+					}
+				})
+
+				t.Run(`weatherstack expired openweather success`, func(t *testing.T) {
 					setTime(0)
 					ch := testRequest(t, h.ts, http.MethodGet, `/v1/weather?city=sydney`, nil)
-					<-h.openweatherIn
-					h.openweatherOut <- OpenweatherResponse{err: errors.New(`openweather error`)}
 					<-h.weatherstackIn
 					h.weatherstackOut <- WeatherstackResponse{res: &weatherstack.CurrentWeather{
-						ReadTime:    timestamppb.New(time.Unix(0, int64(time.Millisecond*25))),
+						ReadTime:    timestamppb.New(time.Unix(0, -int64(time.Minute*3+1))),
 						Location:    sydLocation,
-						Temperature: 29,
-						WindSpeed:   20,
+						Temperature: 33,
+						WindSpeed:   3,
+					}}
+					{
+						req := <-h.openweatherIn
+						if query := req.req.GetQuery(); query != `sydney` {
+							t.Errorf(`unexpected query: %q`, query)
+						}
+						if minReadTime := req.req.GetMinReadTime(); minReadTime == nil || !minReadTime.AsTime().Equal(time.Unix(0, 0).Add(-time.Second*3)) {
+							t.Errorf(`unexpected min read time: %q`, minReadTime)
+						}
+						h.openweatherOut <- OpenweatherResponse{res: &openweather.Weather{
+							ReadTime:  timestamppb.New(time.Unix(0, int64(time.Millisecond*25))),
+							Location:  sydLocation,
+							Temp:      29,
+							WindSpeed: 20,
+						}}
+					}
+					out := <-ch
+					if out.res.StatusCode != http.StatusOK {
+						t.Errorf(`unexpected status code: %d`, out.res.StatusCode)
+					}
+					if out.body != `{"wind_speed":72,"temperature_degrees":29}` {
+						t.Errorf("unexpected body: %q\n%s", out.body, out.body)
+					}
+				})
+
+				t.Run(`weatherstack error openweather success`, func(t *testing.T) {
+					setTime(0)
+					ch := testRequest(t, h.ts, http.MethodGet, `/v1/weather?city=sydney`, nil)
+					<-h.weatherstackIn
+					h.weatherstackOut <- WeatherstackResponse{err: errors.New(`weatherstack error`)}
+					<-h.openweatherIn
+					h.openweatherOut <- OpenweatherResponse{res: &openweather.Weather{
+						ReadTime:  timestamppb.New(time.Unix(0, int64(time.Millisecond*25))),
+						Location:  sydLocation,
+						Temp:      29,
+						WindSpeed: 20,
 					}}
 					out := <-ch
 					if out.res.StatusCode != http.StatusOK {
 						t.Errorf(`unexpected status code: %d`, out.res.StatusCode)
 					}
-					if out.body != "{\"wind_speed\":20,\"temperature_degrees\":29}" {
+					if out.body != `{"wind_speed":72,"temperature_degrees":29}` {
 						t.Errorf("unexpected body: %q\n%s", out.body, out.body)
 					}
 				})
@@ -236,10 +236,10 @@ func TestServer(t *testing.T) {
 				t.Run(`both error`, func(t *testing.T) {
 					setTime(0)
 					ch := testRequest(t, h.ts, http.MethodGet, `/v1/weather?city=sydney`, nil)
-					<-h.openweatherIn
-					h.openweatherOut <- OpenweatherResponse{err: errors.New(`openweather error`)}
 					<-h.weatherstackIn
 					h.weatherstackOut <- WeatherstackResponse{err: errors.New(`weatherstack error`)}
+					<-h.openweatherIn
+					h.openweatherOut <- OpenweatherResponse{err: errors.New(`openweather error`)}
 					out := <-ch
 					if out.res.StatusCode != http.StatusServiceUnavailable {
 						t.Errorf(`unexpected status code: %d`, out.res.StatusCode)
@@ -253,93 +253,93 @@ func TestServer(t *testing.T) {
 					setTime(0)
 					expiredReadTime := timestamppb.New(time.Unix(0, -int64(time.Minute*3+1)))
 					ch := testRequest(t, h.ts, http.MethodGet, `/v1/weather?city=sydney`, nil)
-					<-h.openweatherIn
-					h.openweatherOut <- OpenweatherResponse{res: &openweather.Weather{
-						ReadTime:  expiredReadTime,
-						Location:  sydLocation,
-						Temp:      33,
-						WindSpeed: 3,
-					}}
 					<-h.weatherstackIn
 					h.weatherstackOut <- WeatherstackResponse{res: &weatherstack.CurrentWeather{
 						ReadTime:    expiredReadTime,
 						Location:    sydLocation,
-						Temperature: 29,
-						WindSpeed:   20,
+						Temperature: 33,
+						WindSpeed:   3,
+					}}
+					<-h.openweatherIn
+					h.openweatherOut <- OpenweatherResponse{res: &openweather.Weather{
+						ReadTime:  expiredReadTime,
+						Location:  sydLocation,
+						Temp:      29,
+						WindSpeed: 20,
 					}}
 					out := <-ch
 					if out.res.StatusCode != http.StatusOK {
 						t.Errorf(`unexpected status code: %d`, out.res.StatusCode)
 					}
-					if out.body != `{"wind_speed":10.8,"temperature_degrees":33}` {
+					if out.body != `{"wind_speed":3,"temperature_degrees":33}` {
 						t.Errorf("unexpected body: %q\n%s", out.body, out.body)
 					}
 				})
 
-				t.Run(`both expired weatherstack earlier`, func(t *testing.T) {
+				t.Run(`both expired openweather earlier`, func(t *testing.T) {
 					setTime(0)
 					ch := testRequest(t, h.ts, http.MethodGet, `/v1/weather?city=sydney`, nil)
-					<-h.openweatherIn
-					h.openweatherOut <- OpenweatherResponse{res: &openweather.Weather{
-						ReadTime:  timestamppb.New(time.Unix(0, -int64(time.Minute*3+2))),
-						Location:  sydLocation,
-						Temp:      33,
-						WindSpeed: 3,
-					}}
 					<-h.weatherstackIn
 					h.weatherstackOut <- WeatherstackResponse{res: &weatherstack.CurrentWeather{
-						ReadTime:    timestamppb.New(time.Unix(0, -int64(time.Minute*3+1))),
+						ReadTime:    timestamppb.New(time.Unix(0, -int64(time.Minute*3+2))),
 						Location:    sydLocation,
-						Temperature: 29,
-						WindSpeed:   20,
+						Temperature: 33,
+						WindSpeed:   3,
 					}}
-					out := <-ch
-					if out.res.StatusCode != http.StatusOK {
-						t.Errorf(`unexpected status code: %d`, out.res.StatusCode)
-					}
-					if out.body != `{"wind_speed":20,"temperature_degrees":29}` {
-						t.Errorf("unexpected body: %q\n%s", out.body, out.body)
-					}
-				})
-
-				t.Run(`openweather expired weatherstack error`, func(t *testing.T) {
-					setTime(0)
-					ch := testRequest(t, h.ts, http.MethodGet, `/v1/weather?city=sydney`, nil)
 					<-h.openweatherIn
 					h.openweatherOut <- OpenweatherResponse{res: &openweather.Weather{
-						ReadTime:  timestamppb.New(time.Unix(0, -int64(time.Minute*3+2))),
+						ReadTime:  timestamppb.New(time.Unix(0, -int64(time.Minute*3+1))),
 						Location:  sydLocation,
-						Temp:      33,
-						WindSpeed: 3,
+						Temp:      29,
+						WindSpeed: 20,
 					}}
-					<-h.weatherstackIn
-					h.weatherstackOut <- WeatherstackResponse{err: errors.New(`weatherstack error`)}
 					out := <-ch
 					if out.res.StatusCode != http.StatusOK {
 						t.Errorf(`unexpected status code: %d`, out.res.StatusCode)
 					}
-					if out.body != `{"wind_speed":10.8,"temperature_degrees":33}` {
+					if out.body != `{"wind_speed":72,"temperature_degrees":29}` {
 						t.Errorf("unexpected body: %q\n%s", out.body, out.body)
 					}
 				})
 
-				t.Run(`openweather error weatherstack expired`, func(t *testing.T) {
+				t.Run(`weatherstack expired openweather error`, func(t *testing.T) {
 					setTime(0)
 					ch := testRequest(t, h.ts, http.MethodGet, `/v1/weather?city=sydney`, nil)
+					<-h.weatherstackIn
+					h.weatherstackOut <- WeatherstackResponse{res: &weatherstack.CurrentWeather{
+						ReadTime:    timestamppb.New(time.Unix(0, -int64(time.Minute*3+2))),
+						Location:    sydLocation,
+						Temperature: 33,
+						WindSpeed:   3,
+					}}
 					<-h.openweatherIn
 					h.openweatherOut <- OpenweatherResponse{err: errors.New(`openweather error`)}
+					out := <-ch
+					if out.res.StatusCode != http.StatusOK {
+						t.Errorf(`unexpected status code: %d`, out.res.StatusCode)
+					}
+					if out.body != `{"wind_speed":3,"temperature_degrees":33}` {
+						t.Errorf("unexpected body: %q\n%s", out.body, out.body)
+					}
+				})
+
+				t.Run(`weatherstack error openweather expired`, func(t *testing.T) {
+					setTime(0)
+					ch := testRequest(t, h.ts, http.MethodGet, `/v1/weather?city=sydney`, nil)
 					<-h.weatherstackIn
-					h.weatherstackOut <- WeatherstackResponse{res: &weatherstack.CurrentWeather{
-						ReadTime:    timestamppb.New(time.Unix(0, -int64(time.Minute*3+1))),
-						Location:    sydLocation,
-						Temperature: 29,
-						WindSpeed:   20,
+					h.weatherstackOut <- WeatherstackResponse{err: errors.New(`weatherstack error`)}
+					<-h.openweatherIn
+					h.openweatherOut <- OpenweatherResponse{res: &openweather.Weather{
+						ReadTime:  timestamppb.New(time.Unix(0, -int64(time.Minute*3+1))),
+						Location:  sydLocation,
+						Temp:      29,
+						WindSpeed: 20,
 					}}
 					out := <-ch
 					if out.res.StatusCode != http.StatusOK {
 						t.Errorf(`unexpected status code: %d`, out.res.StatusCode)
 					}
-					if out.body != `{"wind_speed":20,"temperature_degrees":29}` {
+					if out.body != `{"wind_speed":72,"temperature_degrees":29}` {
 						t.Errorf("unexpected body: %q\n%s", out.body, out.body)
 					}
 				})
@@ -350,24 +350,24 @@ func TestServer(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			openweatherIn := make(chan OpenweatherRequest)
-			openweatherOut := make(chan OpenweatherResponse)
 			weatherstackIn := make(chan WeatherstackRequest)
 			weatherstackOut := make(chan WeatherstackResponse)
+			openweatherIn := make(chan OpenweatherRequest)
+			openweatherOut := make(chan OpenweatherResponse)
 
 			getTime, setTime := mockTime()
 
 			server := Server{
 				MaxAge:  tc.maxAge,
 				TimeNow: getTime,
-				Openweather: &mockOpenweatherClient{getWeather: func(ctx context.Context, in *openweather.GetWeatherRequest, _ ...grpc.CallOption) (*openweather.Weather, error) {
-					openweatherIn <- OpenweatherRequest{ctx: ctx, req: in}
-					out := <-openweatherOut
-					return out.res, out.err
-				}},
 				Weatherstack: &mockWeatherstackClient{getCurrentWeather: func(ctx context.Context, in *weatherstack.GetCurrentWeatherRequest, _ ...grpc.CallOption) (*weatherstack.CurrentWeather, error) {
 					weatherstackIn <- WeatherstackRequest{ctx: ctx, req: in}
 					out := <-weatherstackOut
+					return out.res, out.err
+				}},
+				Openweather: &mockOpenweatherClient{getWeather: func(ctx context.Context, in *openweather.GetWeatherRequest, _ ...grpc.CallOption) (*openweather.Weather, error) {
+					openweatherIn <- OpenweatherRequest{ctx: ctx, req: in}
+					out := <-openweatherOut
 					return out.res, out.err
 				}},
 			}
@@ -381,10 +381,10 @@ func TestServer(t *testing.T) {
 			tc.test(t, Harness{
 				ts:              ts,
 				setTime:         setTime,
-				openweatherIn:   openweatherIn,
-				openweatherOut:  openweatherOut,
 				weatherstackIn:  weatherstackIn,
 				weatherstackOut: weatherstackOut,
+				openweatherIn:   openweatherIn,
+				openweatherOut:  openweatherOut,
 			})
 		})
 	}
