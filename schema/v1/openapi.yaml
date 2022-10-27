@@ -34,6 +34,7 @@ components:
         wind_speed:
           type: number
           readOnly: true
+          description: Wind speed in kilometres per hour.
         temperature_degrees:
           type: number
           readOnly: true

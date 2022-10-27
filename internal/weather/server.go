@@ -8,6 +8,7 @@ import (
 	"github.com/joeycumines/mx51-weather-api/weatherstack"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"net/http"
 	"time"
 )
@@ -81,7 +82,10 @@ func (x *Server) buildWeatherResponse(ctx context.Context, query string) (*weath
 
 	// attempt providers in order of higher priority first
 
-	owRes, owErr := x.Openweather.GetWeather(ctx, &openweather.GetWeatherRequest{Query: query})
+	owRes, owErr := x.Openweather.GetWeather(ctx, &openweather.GetWeatherRequest{
+		Query:       query,
+		MinReadTime: timestamppb.New(minReadTime),
+	})
 	if owErr == nil {
 		if owRes.GetReadTime() == nil {
 			owErr = errMissingReadTime
@@ -90,7 +94,10 @@ func (x *Server) buildWeatherResponse(ctx context.Context, query string) (*weath
 		}
 	}
 
-	wsRes, wsErr := x.Weatherstack.GetCurrentWeather(ctx, &weatherstack.GetCurrentWeatherRequest{Query: query})
+	wsRes, wsErr := x.Weatherstack.GetCurrentWeather(ctx, &weatherstack.GetCurrentWeatherRequest{
+		Query:       query,
+		MinReadTime: timestamppb.New(minReadTime),
+	})
 	if wsErr == nil {
 		if wsRes.GetReadTime() == nil {
 			wsErr = errMissingReadTime
@@ -117,7 +124,7 @@ func (x *Server) buildWeatherResponse(ctx context.Context, query string) (*weath
 }
 
 func (x *weatherResponse) fromOpenweather(res *openweather.Weather) *weatherResponse {
-	x.WindSpeed = res.GetWindSpeed()
+	x.WindSpeed = metresPerSecondToKilometresPerHour(res.GetWindSpeed())
 	x.TemperatureDegrees = res.GetTemp()
 	return x
 }
@@ -126,4 +133,8 @@ func (x *weatherResponse) fromWeatherstack(res *weatherstack.CurrentWeather) *we
 	x.WindSpeed = res.GetWindSpeed()
 	x.TemperatureDegrees = res.GetTemperature()
 	return x
+}
+
+func metresPerSecondToKilometresPerHour(mps float64) float64 {
+	return mps * 3.6
 }

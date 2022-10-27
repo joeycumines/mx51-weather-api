@@ -147,7 +147,7 @@ func TestServer(t *testing.T) {
 					if v := out.res.Header.Get(`Content-Length`); v != strconv.Itoa(len(out.body)) {
 						t.Errorf(`unexpected content length: %s`, v)
 					}
-					if out.body != "{\"wind_speed\":20,\"temperature_degrees\":29}" {
+					if out.body != `{"wind_speed":72,"temperature_degrees":29}` {
 						t.Errorf("unexpected body: %q\n%s", out.body, out.body)
 					}
 				})
@@ -160,6 +160,9 @@ func TestServer(t *testing.T) {
 						if query := req.req.GetQuery(); query != `brisbane` {
 							t.Errorf(`unexpected query: %q`, query)
 						}
+						if minReadTime := req.req.GetMinReadTime(); minReadTime == nil || !minReadTime.AsTime().Equal(time.Unix(0, 0).Add(-time.Second*3)) {
+							t.Errorf(`unexpected min read time: %q`, minReadTime)
+						}
 						h.openweatherOut <- OpenweatherResponse{res: &openweather.Weather{
 							ReadTime:  timestamppb.New(time.Unix(0, int64(time.Second*-2))),
 							Temp:      23,
@@ -170,7 +173,7 @@ func TestServer(t *testing.T) {
 					if out.res.StatusCode != http.StatusOK {
 						t.Errorf(`unexpected status code: %d`, out.res.StatusCode)
 					}
-					if out.body != `{"wind_speed":15,"temperature_degrees":23}` {
+					if out.body != `{"wind_speed":54,"temperature_degrees":23}` {
 						t.Errorf("unexpected body: %q\n%s", out.body, out.body)
 					}
 				})
@@ -189,6 +192,9 @@ func TestServer(t *testing.T) {
 						req := <-h.weatherstackIn
 						if query := req.req.GetQuery(); query != `sydney` {
 							t.Errorf(`unexpected query: %q`, query)
+						}
+						if minReadTime := req.req.GetMinReadTime(); minReadTime == nil || !minReadTime.AsTime().Equal(time.Unix(0, 0).Add(-time.Second*3)) {
+							t.Errorf(`unexpected min read time: %q`, minReadTime)
 						}
 						h.weatherstackOut <- WeatherstackResponse{res: &weatherstack.CurrentWeather{
 							ReadTime:    timestamppb.New(time.Unix(0, int64(time.Millisecond*25))),
@@ -265,7 +271,7 @@ func TestServer(t *testing.T) {
 					if out.res.StatusCode != http.StatusOK {
 						t.Errorf(`unexpected status code: %d`, out.res.StatusCode)
 					}
-					if out.body != `{"wind_speed":3,"temperature_degrees":33}` {
+					if out.body != `{"wind_speed":10.8,"temperature_degrees":33}` {
 						t.Errorf("unexpected body: %q\n%s", out.body, out.body)
 					}
 				})
@@ -312,7 +318,7 @@ func TestServer(t *testing.T) {
 					if out.res.StatusCode != http.StatusOK {
 						t.Errorf(`unexpected status code: %d`, out.res.StatusCode)
 					}
-					if out.body != `{"wind_speed":3,"temperature_degrees":33}` {
+					if out.body != `{"wind_speed":10.8,"temperature_degrees":33}` {
 						t.Errorf("unexpected body: %q\n%s", out.body, out.body)
 					}
 				})

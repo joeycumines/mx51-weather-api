@@ -23,9 +23,11 @@ message CurrentWeather {
   google.protobuf.Timestamp read_time = 1;
   weather.type.Location location = 2;
   double temperature = 3;
+  // Wind speed in km/hour.
   double wind_speed = 4;
 }
 
 message GetCurrentWeatherRequest {
   string query = 1;
+  google.protobuf.Timestamp min_read_time = 2;
 }

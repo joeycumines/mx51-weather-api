@@ -32,10 +32,11 @@ type Weather struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	ReadTime  *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=read_time,json=readTime,proto3" json:"read_time,omitempty"`
-	Location  *location.Location     `protobuf:"bytes,2,opt,name=location,proto3" json:"location,omitempty"`
-	Temp      float64                `protobuf:"fixed64,3,opt,name=temp,proto3" json:"temp,omitempty"`
-	WindSpeed float64                `protobuf:"fixed64,4,opt,name=wind_speed,json=windSpeed,proto3" json:"wind_speed,omitempty"`
+	ReadTime *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=read_time,json=readTime,proto3" json:"read_time,omitempty"`
+	Location *location.Location     `protobuf:"bytes,2,opt,name=location,proto3" json:"location,omitempty"`
+	Temp     float64                `protobuf:"fixed64,3,opt,name=temp,proto3" json:"temp,omitempty"`
+	// Wind speed in m/sec.
+	WindSpeed float64 `protobuf:"fixed64,4,opt,name=wind_speed,json=windSpeed,proto3" json:"wind_speed,omitempty"`
 }
 
 func (x *Weather) Reset() {
@@ -103,7 +104,8 @@ type GetWeatherRequest struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Query string `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"`
+	Query       string                 `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"`
+	MinReadTime *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=min_read_time,json=minReadTime,proto3" json:"min_read_time,omitempty"`
 }
 
 func (x *GetWeatherRequest) Reset() {
@@ -145,6 +147,13 @@ func (x *GetWeatherRequest) GetQuery() string {
 	return ""
 }
 
+func (x *GetWeatherRequest) GetMinReadTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.MinReadTime
+	}
+	return nil
+}
+
 var File_openweather_openweatherv1_proto protoreflect.FileDescriptor
 
 var file_openweather_openweatherv1_proto_rawDesc = []byte{
@@ -166,9 +175,13 @@ var file_openweather_openweatherv1_proto_rawDesc = []byte{
 	0x6e, 0x12, 0x12, 0x0a, 0x04, 0x74, 0x65, 0x6d, 0x70, 0x18, 0x03, 0x20, 0x01, 0x28, 0x01, 0x52,
 	0x04, 0x74, 0x65, 0x6d, 0x70, 0x12, 0x1d, 0x0a, 0x0a, 0x77, 0x69, 0x6e, 0x64, 0x5f, 0x73, 0x70,
 	0x65, 0x65, 0x64, 0x18, 0x04, 0x20, 0x01, 0x28, 0x01, 0x52, 0x09, 0x77, 0x69, 0x6e, 0x64, 0x53,
-	0x70, 0x65, 0x65, 0x64, 0x22, 0x29, 0x0a, 0x11, 0x47, 0x65, 0x74, 0x57, 0x65, 0x61, 0x74, 0x68,
+	0x70, 0x65, 0x65, 0x64, 0x22, 0x69, 0x0a, 0x11, 0x47, 0x65, 0x74, 0x57, 0x65, 0x61, 0x74, 0x68,
 	0x65, 0x72, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x14, 0x0a, 0x05, 0x71, 0x75, 0x65,
-	0x72, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x71, 0x75, 0x65, 0x72, 0x79, 0x32,
+	0x72, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x71, 0x75, 0x65, 0x72, 0x79, 0x12,
+	0x3e, 0x0a, 0x0d, 0x6d, 0x69, 0x6e, 0x5f, 0x72, 0x65, 0x61, 0x64, 0x5f, 0x74, 0x69, 0x6d, 0x65,
+	0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1a, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e,
+	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61,
+	0x6d, 0x70, 0x52, 0x0b, 0x6d, 0x69, 0x6e, 0x52, 0x65, 0x61, 0x64, 0x54, 0x69, 0x6d, 0x65, 0x32,
 	0x69, 0x0a, 0x0b, 0x4f, 0x70, 0x65, 0x6e, 0x77, 0x65, 0x61, 0x74, 0x68, 0x65, 0x72, 0x12, 0x5a,
 	0x0a, 0x0a, 0x47, 0x65, 0x74, 0x57, 0x65, 0x61, 0x74, 0x68, 0x65, 0x72, 0x12, 0x29, 0x2e, 0x77,
 	0x65, 0x61, 0x74, 0x68, 0x65, 0x72, 0x2e, 0x6f, 0x70, 0x65, 0x6e, 0x77, 0x65, 0x61, 0x74, 0x68,
@@ -204,13 +217,14 @@ var file_openweather_openweatherv1_proto_goTypes = []interface{}{
 var file_openweather_openweatherv1_proto_depIdxs = []int32{
 	2, // 0: weather.openweather.v1.Weather.read_time:type_name -> google.protobuf.Timestamp
 	3, // 1: weather.openweather.v1.Weather.location:type_name -> weather.type.Location
-	1, // 2: weather.openweather.v1.Openweather.GetWeather:input_type -> weather.openweather.v1.GetWeatherRequest
-	0, // 3: weather.openweather.v1.Openweather.GetWeather:output_type -> weather.openweather.v1.Weather
-	3, // [3:4] is the sub-list for method output_type
-	2, // [2:3] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	2, // 2: weather.openweather.v1.GetWeatherRequest.min_read_time:type_name -> google.protobuf.Timestamp
+	1, // 3: weather.openweather.v1.Openweather.GetWeather:input_type -> weather.openweather.v1.GetWeatherRequest
+	0, // 4: weather.openweather.v1.Openweather.GetWeather:output_type -> weather.openweather.v1.Weather
+	4, // [4:5] is the sub-list for method output_type
+	3, // [3:4] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_openweather_openweatherv1_proto_init() }
