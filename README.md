@@ -35,7 +35,7 @@ demonstrated need, and as such a basic (race-prone) distributed stop-gap would b
 
 Protobuf and gRPC are used by this project, primarily for internal APIs.
 The protobuf package prefix `weather` has been used, and you can locate the schemas like
-`find . -type f -name '*.proto'`.
+`find . -not \( -path ./hack -prune \) -type f -name '*.proto'`.
 
 Source code has been generated using relative paths for simplicity, but a more sophisticated method would be preferable
 for production. Reasons for this include use cases such as generating more than just Go source, and leveraging more
